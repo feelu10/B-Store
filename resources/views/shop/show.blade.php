@@ -1,6 +1,31 @@
 @extends('layouts.app')
 
 @section('content')
+{{-- Top bar: Back + breadcrumb --}}
+<div class="mb-6 flex items-center justify-between gap-3">
+  <a href="{{ url()->previous() ?: route('shop.index') }}"
+     class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-purple-800 ring-1 ring-purple-200 hover:bg-purple-50 hover:ring-purple-300 transition">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back
+  </a>
+
+  <nav class="hidden md:block text-xs text-gray-500">
+    <a href="{{ route('shop.index') }}" class="hover:text-purple-700">Shop</a>
+    @if(optional($product->category)->id)
+      <span class="mx-2">/</span>
+      <a href="{{ route('shop.index', ['category_id' => $product->category_id]) }}" class="hover:text-purple-700">
+        {{ $product->category->name }}
+      </a>
+    @endif
+    <span class="mx-2">/</span>
+    <span class="text-gray-600">
+      {{ \Illuminate\Support\Str::limit($product->name, 48) }}
+    </span>
+  </nav>
+</div>
+
 <div class="grid md:grid-cols-2 gap-8">
   {{-- Gallery (unchanged) --}}
   <div class="bg-white rounded-2xl shadow p-4">
@@ -72,7 +97,6 @@
 
         <label class="inline-flex items-center gap-2">
           <span class="text-sm text-gray-600">Qty</span>
-          {{-- ✅ set max to current stock; JS will keep it up-to-date --}}
           <input id="qtyInput"
                  type="number"
                  name="qty"
@@ -99,12 +123,41 @@
     @endauth
   </div>
 </div>
+
+{{-- Suggestions (rails) --}}
+@if(($related->count() ?? 0) + ($youMayAlsoLike->count() ?? 0) + ($recentlyViewed->count() ?? 0) > 0)
+  <div class="mt-12 space-y-10">
+    @if(!empty($related) && $related->count() > 0)
+      @include('shop.partials.product-rail', [
+        'title' => 'Related in this category',
+        'subtitle' => 'Fresh picks curated for you',
+        'products' => $related
+      ])
+    @endif
+
+    @if(!empty($youMayAlsoLike) && $youMayAlsoLike->count() > 0)
+      @include('shop.partials.product-rail', [
+        'title' => 'You may also like',
+        'subtitle' => 'Similar vibe, different twist',
+        'products' => $youMayAlsoLike
+      ])
+    @endif
+
+    @if(!empty($recentlyViewed) && $recentlyViewed->count() > 0)
+      @include('shop.partials.product-rail', [
+        'title' => 'Recently viewed',
+        'subtitle' => 'Because you looked at these',
+        'products' => $recentlyViewed
+      ])
+    @endif
+  </div>
+@endif
 @endsection
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // ===== Thumbnail swap (unchanged) =====
+  // Thumbnails
   const mainImage = document.getElementById('mainImage');
   const thumbs = document.querySelectorAll('.thumb-btn');
   thumbs.forEach(btn => {
@@ -118,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ===== Hover zoom (unchanged) =====
+  // Hover zoom
   const wrap = document.getElementById('zoomWrap');
   if (wrap && mainImage) {
     const leave = () => { mainImage.style.transformOrigin = 'center center'; mainImage.style.transitionDuration = '300ms'; };
@@ -149,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, {passive:true});
   }
 
-  // ===== LIVE STOCK ENFORCEMENT =====
+  // Live stock enforcement
   const productId  = document.getElementById('addToCartForm')?.dataset.productId;
   const qtyInput   = document.getElementById('qtyInput');
   const addBtn     = document.getElementById('addToCartBtn');
@@ -193,13 +246,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Initial clamp & UI
   (async () => {
     const s = await fetchStock();
     if (s !== null) { clampQty(s); renderStockUI(s); }
   })();
 
-  // Proactive refresh: on focus, and every 20s
   ['focus','visibilitychange'].forEach(evt => {
     document.addEventListener(evt, async () => {
       if (document.visibilityState === 'hidden') return;
@@ -212,16 +263,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (s !== null) { clampQty(s); renderStockUI(s); }
   }, 20000);
 
-  // Clamp on manual edits
   qtyInput?.addEventListener('input', async () => {
     const s = await fetchStock();
     if (s !== null) clampQty(s);
   });
 
-  // Final guard right before submit
   document.getElementById('addToCartForm')?.addEventListener('submit', async (e) => {
     const s = await fetchStock();
-    if (s === null) return; // allow if fetch failed
+    if (s === null) return;
     const want = parseInt(qtyInput.value || '1', 10);
     if (s < 1 || want > s) {
       e.preventDefault();

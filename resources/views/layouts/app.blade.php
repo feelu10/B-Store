@@ -139,6 +139,13 @@
                 </span>
               </a>
 
+              <a href="{{ route('customer.profile.edit') }}"
+                class="relative text-sm {{ request()->routeIs('customer.profile.*') ? 'text-purple-900 font-semibold' : 'text-purple-800 hover:text-purple-900' }}">
+                Profile
+                <span class="absolute left-0 -bottom-1 h-0.5 w-full origin-left scale-x-{{ request()->routeIs('customer.profile.*') ? '100' : '0' }} bg-gradient-to-r from-purple-600 to-pink-500 transition-transform duration-300 ease-out"></span>
+              </a>
+
+
               <form action="{{ route('logout') }}" method="POST">
                 @csrf
                 <button class="rounded-xl px-4 py-2 text-sm font-medium bg-purple-600 text-white shadow hover:bg-purple-700 active:scale-[.99]">
@@ -166,6 +173,10 @@
               @if($cartCount > 0)
                 <span class="ml-2 text-xs bg-pink-500 text-white rounded-full px-1.5 py-0.5">{{ $cartCount }}</span>
               @endif
+            </a>
+            <a href="{{ route('customer.profile.edit') }}"
+              class="block py-2 rounded-lg px-3 hover:bg-purple-50 {{ request()->routeIs('customer.profile.*') ? 'font-semibold text-purple-900' : 'text-purple-800' }}">
+              Profile
             </a>
             <form action="{{ route('logout') }}" method="POST" class="pt-1">
               @csrf

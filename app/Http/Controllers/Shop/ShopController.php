@@ -50,11 +50,70 @@ class ShopController extends Controller
 
     public function show(string $slug)
     {
-        $product = Product::with('images')
+        $product = Product::with(['images','category'])   // make sure category is eager-loaded
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
 
-        return view('shop.show', compact('product'));
+        // If the product doesn’t have a category, fall back later to generic picks
+        $categoryId = $product->category_id;
+
+        // ---- Related (same category, newest)
+        $related = collect();
+        if ($categoryId) {
+            $related = Product::query()
+                ->with(['images' => fn($q) => $q->orderBy('id')])
+                ->where('is_active', true)
+                ->where('category_id', $categoryId)
+                ->where('id', '!=', $product->id)
+                ->orderBy('created_at', 'desc')
+                ->take(8)
+                ->get();
+        }
+
+        // ---- You may also like (same category, randomized)
+        $youMayAlsoLike = collect();
+        if ($categoryId) {
+            $youMayAlsoLike = Product::query()
+                ->with(['images' => fn($q) => $q->orderBy('id')])
+                ->where('is_active', true)
+                ->where('category_id', $categoryId)
+                ->where('id', '!=', $product->id)
+                ->inRandomOrder()
+                ->take(8)
+                ->get();
+        }
+
+        // ---- Recently viewed (session-based, exclude current)
+        $rvKey = 'recently_viewed_product_ids';
+        $recentIds = collect(session($rvKey, []))
+            ->prepend($product->id)->unique()->take(20)->values();
+        session([$rvKey => $recentIds->all()]);
+
+        $recentlyViewed = Product::query()
+            ->with(['images' => fn($q) => $q->orderBy('id')])
+            ->whereIn('id', $recentIds->reject(fn($id) => $id === $product->id)->take(12))
+            ->get()
+            ->sortBy(fn($p) => $recentIds->search($p->id))
+            ->values();
+
+        // ---- Fallbacks if category is missing or sets ended up empty:
+        if ($related->isEmpty()) {
+            $related = Product::query()
+                ->with(['images' => fn($q) => $q->orderBy('id')])
+                ->where('is_active', true)
+                ->where('id', '!=', $product->id)
+                ->latest()->take(8)->get();
+        }
+        if ($youMayAlsoLike->isEmpty()) {
+            $youMayAlsoLike = Product::query()
+                ->with(['images' => fn($q) => $q->orderBy('id')])
+                ->where('is_active', true)
+                ->where('id', '!=', $product->id)
+                ->inRandomOrder()->take(8)->get();
+        }
+
+        return view('shop.show', compact('product', 'related', 'youMayAlsoLike', 'recentlyViewed'));
     }
+
 }

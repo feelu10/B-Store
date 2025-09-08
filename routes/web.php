@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Auth\VerifyEmailLinkController;
 use Illuminate\Auth\Events\Verified;
 use App\Models\User;
+
 /*
 |--------------------------------------------------------------------------
 | Public Shop Routes
@@ -101,6 +102,12 @@ Route::middleware(['auth', 'verified', 'role:customer'])->group(function () {
 
     Route::post('/checkout', [OrderController::class, 'checkout'])->name('checkout');
     Route::get('/orders', [OrderController::class, 'myOrders'])->name('orders.my');
+
+    Route::get('/profile', [\App\Http\Controllers\Customer\CustomerProfileController::class, 'edit'])
+        ->name('customer.profile.edit');
+
+    Route::patch('/profile', [\App\Http\Controllers\Customer\CustomerProfileController::class, 'update'])
+        ->name('customer.profile.update');
 });
 
 /*
